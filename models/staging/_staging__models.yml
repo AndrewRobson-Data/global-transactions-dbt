@@ -1,0 +1,101 @@
+version: 2
+
+models:
+  - name: stg_transactions
+    description: One row per platform transaction. Amounts are unsigned and in the original currency.
+    columns:
+      - name: transaction_id
+        data_tests:
+          - unique
+          - not_null
+      - name: client_id
+        data_tests:
+          - not_null
+      - name: transaction_amount
+        data_tests:
+          - not_null
+      - name: transaction_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['payment', 'refund', 'chargeback', 'fraud']
+      - name: transaction_date
+        data_tests:
+          - not_null
+      - name: platform_fee_margin
+        description: Default fee margin, before any contract discount.
+        data_tests:
+          - not_null
+      - name: currency
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['GBP', 'USD']
+      - name: linked_transaction_id
+        description: For refunds, the payment being refunded.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_transactions')
+                field: transaction_id
+          - not_null:
+              config:
+                where: "transaction_type = 'refund'"
+
+  - name: stg_client_contracts
+    description: One row per client with a discount contract.
+    columns:
+      - name: client_id
+        data_tests:
+          - unique
+          - not_null
+      - name: contract_end_date
+        description: Last day of the contract (inclusive).
+        data_tests:
+          - not_null
+      - name: spend_threshold
+        description: Spend required before the discounted margin applies.
+      - name: discounted_fee_margin
+        data_tests:
+          - not_null
+
+  - name: stg_currency_rates
+    description: One row per currency per day.
+    data_tests:
+      - unique:
+          arguments:
+            column_name: "currency || '-' || rate_date"
+    columns:
+      - name: currency
+        data_tests:
+          - not_null
+      - name: rate_date
+        data_tests:
+          - not_null
+      - name: exchange_rate_to_gbp
+        description: Multiply a local amount by this to convert to GBP.
+        data_tests:
+          - not_null
+
+  - name: stg_transaction_resolutions
+    description: One row per chargeback with its resolution status.
+    columns:
+      - name: transaction_id
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_transactions')
+                field: transaction_id
+      - name: resolution_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['resolved', 'pending']
+      - name: resolution_date
+        description: Null while the chargeback is pending.
+        data_tests:
+          - not_null:
+              config:
+                where: "resolution_status = 'resolved'"
