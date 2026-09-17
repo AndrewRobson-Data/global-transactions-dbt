@@ -2,7 +2,7 @@ with source as (
     select * from {{ ref('transactions') }}
 ),
 
-src_transactions as (
+renamed as (
     select
         transaction_id,
         client_id,
@@ -12,8 +12,7 @@ src_transactions as (
         platform_fee_margin,
         currency,
         linked_transaction_id
-
     from source
 )
 
-select * from src_transactions
+select * from renamed
