@@ -76,6 +76,29 @@ The brief leaves a lot open. Normally I'd check these with stakeholders, but for
 - July is a partial month. The data stops on the 6th, so it has four refunds and four chargeback resolutions and no payments at all. Every client shows zero GMV and some show negative revenue, which is correct but looks alarming. In a real build I'd carry an as-of date and mark incomplete months.
 - Resolution dates come in as dd/mm/yyyy. Everything else is ISO. Worth fixing at source.
 
+## Gotchas
+
+Everything that would quietly give a wrong answer, and what I did about it.
+
+| Gotcha | How it's handled |
+|---|---|
+| Starter model had a trailing comma and wouldn't compile | Fixed first, as its own commit |
+| "Pre-built" database was empty | `dbt seed` loads it; `dbt build` does everything from scratch |
+| Resolution dates are dd/mm/yyyy, everything else ISO | Parsed once in staging. `date()` returns null on these rather than erroring, so a not-null test and a round-trip test catch a silent parse failure |
+| SQLite normalises impossible dates, so 31/04 becomes 1 May | Round-trip test compares the parsed date back to the source string |
+| Exchange rates stop on 30 June, transactions run to 6 July | Each row takes the latest rate on or before its date, with a test that the right rate was picked and a warning when a fallback is used |
+| A refunded USD sale didn't net to zero | Refunds convert at the rate used for the payment they reverse |
+| Six payments are refunded more than once, for more than they were worth | Flagged with a warning test, not silently dropped. £175k of refunds, £35k of fee reversal |
+| Chargebacks and fraud have no link to the payment they reverse | They reverse at the default margin rather than guessing a rate |
+| Pending chargebacks: 16 of 17 are over 30 days old | Excluded from revenue until resolved, and a warning test flags the backlog |
+| Six of ten clients have no contract | Left-joined so they're kept, always on the default rate, with tests that they're never discounted and never dropped |
+| Two clients traded before their contracts started | Contract dates are respected, so that spend doesn't count towards their thresholds |
+| Contracts starting on the 31st would roll into the wrong month | End dates cap the day at the end of the target month, with a unit test |
+| Transaction IDs aren't in date order | Not used to order anything; the discount starts the day after a threshold is crossed |
+| Every amount arrives positive, including reversals | Signs applied by transaction type, with a test on every row |
+| SQLite barely enforces types, so a date can become a number | Every derived column is cast explicitly |
+| Rounding could build up through the joins | Full precision through the models, rounded at the mart, with reconciliation tests that compare exactly |
+
 ## Tests
 
 Standard key and relationship tests, a few business rule checks, reconciliation from staging through to the mart, and unit tests for the discount and chargeback logic, since the real data never triggers a discount.
