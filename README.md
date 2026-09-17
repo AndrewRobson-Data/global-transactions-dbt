@@ -83,7 +83,6 @@ Things in the data that would quietly give a wrong answer, and what I did about 
 | Gotcha | How it's handled |
 |---|---|
 | Starter model had a trailing comma and wouldn't compile | Fixed first, as its own commit |
-| "Pre-built" database was empty | `dbt seed` loads it; `dbt build` does everything from scratch |
 | Resolution dates are dd/mm/yyyy, everything else ISO | Parsed once in staging. `date()` returns null on these rather than erroring, so a not-null test catches a silent parse failure |
 | Exchange rates stop on 30 June, transactions run to 6 July | Each row takes the latest rate on or before its date, with a test that the right rate was picked and a warning when a fallback is used |
 | A refunded USD sale didn't net to zero | Refunds convert at the rate used for the payment they reverse |
