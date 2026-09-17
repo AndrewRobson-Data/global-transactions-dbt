@@ -78,6 +78,8 @@ There are three warnings: clients without a contract, old pending chargebacks, a
 
 SQLite doesn't really do types, so derived columns are cast explicitly. Otherwise the unit tests read dates as numbers.
 
+A GitHub Actions workflow runs `dbt build` on every pull request and push to main.
+
 ## Next steps
 
 - Confirm the assumptions above with finance and whoever owns the client contracts. Some of them would change the numbers. If the platform keeps its fee on refunds, for example, revenue goes up by about £0.8m.
@@ -85,7 +87,7 @@ SQLite doesn't really do types, so derived columns are cast explicitly. Otherwis
 - Move it onto the warehouse. The logs left in the project point to Snowflake, and most of what's below needs a proper warehouse rather than SQLite.
 - Add Elementary for anomaly detection. At the moment the tests only catch rules I thought of. Elementary would flag things like a sudden drop in daily volume, a jump in refunds or a late rates feed, and send alerts to the right people instead of leaving warnings in the logs.
 - Define revenue and GMV as metrics in the dbt semantic layer. Everyone would get the same numbers whatever tool they use, and it opens the door to asking questions in plain English through an AI tool, without having to know which model or filter to use.
-- Run `dbt build` in CI on every pull request, and snapshot each month's figures when it closes so late data can't quietly change them.
+- Snapshot each month's figures when it closes so late data can't quietly change them.
 
 ---
 
