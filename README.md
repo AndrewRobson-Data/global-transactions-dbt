@@ -78,14 +78,13 @@ The brief leaves a lot open. Normally I'd check these with stakeholders, but for
 
 ## Gotchas
 
-Everything that would quietly give a wrong answer, and what I did about it.
+Things in the data that would quietly give a wrong answer, and what I did about them.
 
 | Gotcha | How it's handled |
 |---|---|
 | Starter model had a trailing comma and wouldn't compile | Fixed first, as its own commit |
 | "Pre-built" database was empty | `dbt seed` loads it; `dbt build` does everything from scratch |
-| Resolution dates are dd/mm/yyyy, everything else ISO | Parsed once in staging. `date()` returns null on these rather than erroring, so a not-null test and a round-trip test catch a silent parse failure |
-| SQLite normalises impossible dates, so 31/04 becomes 1 May | Round-trip test compares the parsed date back to the source string |
+| Resolution dates are dd/mm/yyyy, everything else ISO | Parsed once in staging. `date()` returns null on these rather than erroring, so a not-null test catches a silent parse failure |
 | Exchange rates stop on 30 June, transactions run to 6 July | Each row takes the latest rate on or before its date, with a test that the right rate was picked and a warning when a fallback is used |
 | A refunded USD sale didn't net to zero | Refunds convert at the rate used for the payment they reverse |
 | Six payments are refunded more than once, for more than they were worth | Flagged with a warning test, not silently dropped. £175k of refunds, £35k of fee reversal |
@@ -93,10 +92,18 @@ Everything that would quietly give a wrong answer, and what I did about it.
 | Pending chargebacks: 16 of 17 are over 30 days old | Excluded from revenue until resolved, and a warning test flags the backlog |
 | Six of ten clients have no contract | Left-joined so they're kept, always on the default rate, with tests that they're never discounted and never dropped |
 | Two clients traded before their contracts started | Contract dates are respected, so that spend doesn't count towards their thresholds |
-| Contracts starting on the 31st would roll into the wrong month | End dates cap the day at the end of the target month, with a unit test |
-| Transaction IDs aren't in date order | No business logic depends on their order; the discount starts the day after a threshold is crossed. They're only a tiebreak inside one test |
+| Transaction IDs aren't in date order | No business logic depends on their order; the discount starts the day after a threshold is crossed |
 | Every amount arrives positive, including reversals | Signs applied by transaction type, with a test on every row |
-| SQLite barely enforces types, so a date can become a number | Every derived column is cast explicitly |
+| SQLite barely enforces types, so a date can become a number | Every derived column is cast explicitly. This one bit: it broke a unit test before I caught it |
+
+## Guarded anyway
+
+None of these are in the data. They're cheap to guard and would be silent if they ever happened.
+
+| Risk | Guard |
+|---|---|
+| SQLite normalises impossible dates, so 31/04 would become 1 May | Round-trip test compares the parsed date back to the source string |
+| A contract starting on the 31st would roll into the wrong month | End dates cap the day at the end of the target month, with a unit test |
 | Rounding could build up through the joins | Full precision through the models, rounded at the mart, with reconciliation tests that compare exactly |
 
 ## Tests
