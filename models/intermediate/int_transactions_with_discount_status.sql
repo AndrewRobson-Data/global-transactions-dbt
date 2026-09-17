@@ -55,6 +55,7 @@ final as (
         with_margin.is_in_contract,
         with_margin.spend_threshold,
         with_margin.payments_spend_before_gbp,
+        with_margin.platform_fee_margin,
         payments.transaction_date as original_payment_date,
         cast(case
             when with_margin.transaction_type = 'refund' then payments.is_discount_eligible
