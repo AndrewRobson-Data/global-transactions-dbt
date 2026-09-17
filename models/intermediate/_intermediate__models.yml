@@ -1,0 +1,18 @@
+version: 2
+
+models:
+  - name: int_transactions_converted_to_gbp
+    description: Transactions with amounts converted to GBP at the latest rate on or before the transaction date.
+    columns:
+      - name: transaction_id
+        data_tests:
+          - unique
+          - not_null
+      - name: rate_date
+        description: Date of the rate used. Earlier than transaction_date when no same-day rate exists.
+      - name: is_fallback_rate
+        description: True when no rate existed for the transaction date.
+      - name: amount_gbp
+        description: Unsigned transaction amount in GBP.
+        data_tests:
+          - not_null
