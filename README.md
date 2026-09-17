@@ -6,7 +6,7 @@ Original brief is at the bottom.
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
-pip install dbt-sqlite
+pip install 'dbt-sqlite>=1.10,<1.11'
 export DBT_PROFILES_DIR=.
 dbt build
 ```
