@@ -100,6 +100,7 @@ models:
                 field: transaction_id
       - name: resolution_status
         data_tests:
+          - not_null
           - accepted_values:
               arguments:
                 values: ['resolved', 'pending']

@@ -48,16 +48,17 @@ final as (
     select
         client_id,
         month_start,
-        cast(revenue_gbp as real) as revenue_gbp,
-        cast(gross_gmv_gbp as real) as gross_gmv_gbp,
-        cast(net_gmv_gbp as real) as net_gmv_gbp,
+        -- money is rounded here, at the reporting layer, and kept at full precision upstream
+        cast(round(revenue_gbp, 2) as real) as revenue_gbp,
+        cast(round(gross_gmv_gbp, 2) as real) as gross_gmv_gbp,
+        cast(round(net_gmv_gbp, 2) as real) as net_gmv_gbp,
         cast(has_contract as integer) as has_contract,
         cast(coalesce(is_contract_active, 0) as integer) as is_contract_active,
         spend_threshold,
-        cast(case when has_contract then sum(contract_payments_gbp) over (
+        cast(case when has_contract then round(sum(contract_payments_gbp) over (
             partition by client_id
             order by month_start
-        ) end as real) as spend_to_date_gbp,
+        ), 2) end as real) as spend_to_date_gbp,
         cast(
             sum(contract_payments_gbp) over (partition by client_id order by month_start)
             / spend_threshold
