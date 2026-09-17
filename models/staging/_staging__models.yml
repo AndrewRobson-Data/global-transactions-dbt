@@ -53,12 +53,17 @@ models:
         data_tests:
           - unique
           - not_null
+      - name: contract_start_date
+        data_tests:
+          - not_null
       - name: contract_end_date
         description: Last day of the contract (inclusive).
         data_tests:
           - not_null
       - name: spend_threshold
         description: Spend required before the discounted margin applies.
+        data_tests:
+          - not_null
       - name: discounted_fee_margin
         data_tests:
           - not_null
