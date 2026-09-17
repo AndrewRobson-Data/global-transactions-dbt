@@ -9,7 +9,7 @@ contracts as (
 with_contract as (
     select
         transactions.*,
-        contracts.client_id is not null as is_in_contract,
+        cast(contracts.client_id is not null as integer) as is_in_contract,
         contracts.spend_threshold,
         contracts.discounted_fee_margin
     from transactions
@@ -23,14 +23,14 @@ with_contract as (
 with_spend as (
     select
         *,
-        coalesce(
+        cast(coalesce(
             sum(case when is_in_contract and transaction_type = 'payment' then amount_gbp end) over (
                 partition by client_id
                 order by transaction_date, transaction_id
                 rows between unbounded preceding and 1 preceding
             ),
             0
-        ) as payments_spend_before_gbp
+        ) as real) as payments_spend_before_gbp
     from with_contract
 ),
 
@@ -56,16 +56,16 @@ final as (
         with_margin.spend_threshold,
         with_margin.payments_spend_before_gbp,
         payments.transaction_date as original_payment_date,
-        case
+        cast(case
             when with_margin.transaction_type = 'refund' then payments.is_discount_eligible
             else with_margin.is_discount_eligible
-        end as is_discount_applied,
-        case
+        end as integer) as is_discount_applied,
+        cast(case
             when with_margin.transaction_type = 'refund' and payments.is_discount_eligible then payments.discounted_fee_margin
             when with_margin.transaction_type = 'refund' then payments.platform_fee_margin
             when with_margin.is_discount_eligible then with_margin.discounted_fee_margin
             else with_margin.platform_fee_margin
-        end as applied_fee_margin
+        end as real) as applied_fee_margin
     from with_margin
     left join with_margin as payments
         on with_margin.linked_transaction_id = payments.transaction_id

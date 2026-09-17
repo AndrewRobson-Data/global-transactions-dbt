@@ -23,8 +23,8 @@ final as (
         transactions.*,
         currency_rates.rate_date,
         currency_rates.exchange_rate_to_gbp,
-        currency_rates.rate_date < transactions.transaction_date as is_fallback_rate,
-        transactions.transaction_amount * currency_rates.exchange_rate_to_gbp as amount_gbp
+        cast(currency_rates.rate_date < transactions.transaction_date as integer) as is_fallback_rate,
+        cast(transactions.transaction_amount * currency_rates.exchange_rate_to_gbp as real) as amount_gbp
     from transactions
     left join rate_dates
         on transactions.transaction_id = rate_dates.transaction_id
