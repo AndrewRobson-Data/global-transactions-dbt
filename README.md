@@ -69,12 +69,12 @@ The brief leaves a lot open. Normally I'd check these with stakeholders, but for
 
 - Nobody hits their threshold, so no discounts are applied. C001 gets closest at 76%.
 - Revenue is £2.32m on £19.13m of payments.
-- C005, C008 and C009 have no contract but each put more through than C001, which has one. One for account management.
-- 16 of the 17 pending chargebacks are over 30 days old, but resolved ones all close within 15. Something's not right there.
-- Six payments have been refunded more than once, and in each case the refunds add up to more than the payment was worth. That's £175k of refund volume and £35k of fee reversal that shouldn't be there. I've flagged them with a test rather than dropping them, as it could be a genuine double refund. Worth a conversation before anyone nets them out.
-- Two clients were trading before their contracts started: C003 from January against a February contract, C004 from January against a March one. Worth checking whether the contracts were meant to be backdated.
+- C005, C008 and C009 have no contract but each put more through than C001, which has one. If this were my data I'd pass that to account management.
+- 16 of the 17 pending chargebacks are over 30 days old, while resolved ones all close within 15. That pattern doesn't look like normal dispute timing, so I'd ask whether resolutions are being loaded at all.
+- Six payments have been refunded more than once, and in each case the refunds add up to more than the payment was worth. That's £175k of refund volume and £35k of fee reversal. Each one is refunded exactly twice for exactly double the payment, which looks more like a duplicated load than a genuine double refund. I've flagged them with a test rather than dropping them, and I'd confirm with finance before netting them out.
+- Two clients were trading before their contracts started: C003 from January against a February contract, C004 from January against a March one. I'd check whether the contracts were meant to be backdated, as it's £299,539 and £722,750 of spend that doesn't count towards their thresholds.
 - July is a partial month. The data stops on the 6th, so it has four refunds and four chargeback resolutions and no payments at all. Every client shows zero GMV and some show negative revenue, which is correct but looks alarming. In a real build I'd carry an as-of date and mark incomplete months.
-- Resolution dates come in as dd/mm/yyyy. Everything else is ISO. Worth fixing at source.
+- Resolution dates come in as dd/mm/yyyy while everything else is ISO. I've parsed them here, but I'd rather see that fixed upstream.
 
 ## Gotchas
 
@@ -119,7 +119,7 @@ A GitHub Actions workflow runs `dbt build` on every pull request and push to mai
 ## Next steps
 
 - Confirm the assumptions above with finance and whoever owns the client contracts. Some of them would change the numbers. If the platform keeps its fee on refunds, for example, revenue goes up by about £0.8m.
-- Take the data issues to their owners: the stuck pending chargebacks, the date format on resolutions, and the rates feed stopping before the transactions do.
+- Raise the data issues with whoever owns those feeds: the stuck pending chargebacks, the date format on resolutions, and the rates feed stopping before the transactions do.
 - Move it onto a proper warehouse. SQLite is fine for this exercise but most of what's below needs a real one.
 - Add Elementary for anomaly detection. At the moment the tests only catch rules I thought of. Elementary would flag things like a sudden drop in daily volume, a jump in refunds or a late rates feed, and send alerts to the right people instead of leaving warnings in the logs.
 - Define revenue and GMV as metrics in the dbt semantic layer. Everyone would get the same numbers whatever tool they use, and it opens the door to asking questions in plain English through an AI tool, without having to know which model or filter to use.
