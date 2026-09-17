@@ -1,3 +1,5 @@
+version: 2
+
 unit_tests:
   - name: test_contract_end_date_handles_month_ends
     description: Contracts starting late in the month end on the day before the same day N months later, capped at month end.

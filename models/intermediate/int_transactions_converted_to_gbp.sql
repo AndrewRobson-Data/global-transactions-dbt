@@ -43,8 +43,8 @@ final as (
         own_rate.platform_fee_margin,
         own_rate.currency,
         own_rate.linked_transaction_id,
-        coalesce(payments.rate_date, own_rate.rate_date) as rate_date,
-        coalesce(payments.exchange_rate_to_gbp, own_rate.exchange_rate_to_gbp) as exchange_rate_to_gbp,
+        cast(coalesce(payments.rate_date, own_rate.rate_date) as text) as rate_date,
+        cast(coalesce(payments.exchange_rate_to_gbp, own_rate.exchange_rate_to_gbp) as real) as exchange_rate_to_gbp,
         -- only meaningful where the row uses its own rate; a refund inherits its payment's
         cast(payments.transaction_id is null and own_rate.rate_date < own_rate.transaction_date as integer) as is_fallback_rate,
         cast(payments.transaction_id is not null as integer) as uses_original_payment_rate,

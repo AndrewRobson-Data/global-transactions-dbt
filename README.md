@@ -69,7 +69,7 @@ The brief leaves a lot open. Normally I'd check these with stakeholders, but for
 
 - Nobody hits their threshold, so no discounts are applied. C001 gets closest at 76%.
 - Revenue is £2.32m on £19.13m of payments.
-- C005 and C008 have no contract but put more through than C001, which does. One for account management.
+- C005, C008 and C009 have no contract but each put more through than C001, which has one. One for account management.
 - 16 of the 17 pending chargebacks are over 30 days old, but resolved ones all close within 15. Something's not right there.
 - Six payments have been refunded more than once, and in each case the refunds add up to more than the payment was worth. That's £175k of refund volume and £35k of fee reversal that shouldn't be there. I've flagged them with a test rather than dropping them, as it could be a genuine double refund. Worth a conversation before anyone nets them out.
 - Two clients were trading before their contracts started: C003 from January against a February contract, C004 from January against a March one. Worth checking whether the contracts were meant to be backdated.
@@ -94,7 +94,7 @@ Everything that would quietly give a wrong answer, and what I did about it.
 | Six of ten clients have no contract | Left-joined so they're kept, always on the default rate, with tests that they're never discounted and never dropped |
 | Two clients traded before their contracts started | Contract dates are respected, so that spend doesn't count towards their thresholds |
 | Contracts starting on the 31st would roll into the wrong month | End dates cap the day at the end of the target month, with a unit test |
-| Transaction IDs aren't in date order | Not used to order anything; the discount starts the day after a threshold is crossed |
+| Transaction IDs aren't in date order | No business logic depends on their order; the discount starts the day after a threshold is crossed. They're only a tiebreak inside one test |
 | Every amount arrives positive, including reversals | Signs applied by transaction type, with a test on every row |
 | SQLite barely enforces types, so a date can become a number | Every derived column is cast explicitly |
 | Rounding could build up through the joins | Full precision through the models, rounded at the mart, with reconciliation tests that compare exactly |

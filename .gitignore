@@ -8,3 +8,5 @@ target/
 .venv/
 *.db
 .vscode/
+seeds/target/
+seeds/logs/
