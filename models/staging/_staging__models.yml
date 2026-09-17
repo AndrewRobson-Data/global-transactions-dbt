@@ -16,6 +16,7 @@ models:
           - not_null
       - name: transaction_type
         data_tests:
+          - not_null
           - accepted_values:
               arguments:
                 values: ['payment', 'refund', 'chargeback', 'fraud']
