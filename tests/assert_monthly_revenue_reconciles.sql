@@ -27,5 +27,5 @@ from mart
 left join recognised
     on mart.client_id = recognised.client_id
     and mart.month_start = recognised.month_start
-where abs(mart.revenue_gbp - coalesce(recognised.revenue_gbp, 0)) > 0.01
-    or abs(mart.net_gmv_gbp - coalesce(recognised.net_gmv_gbp, 0)) > 0.01
+where mart.revenue_gbp != round(coalesce(recognised.revenue_gbp, 0), 2)
+    or mart.net_gmv_gbp != round(coalesce(recognised.net_gmv_gbp, 0), 2)
