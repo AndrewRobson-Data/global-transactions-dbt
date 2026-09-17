@@ -88,6 +88,7 @@ A GitHub Actions workflow runs `dbt build` on every pull request and push to mai
 - Add Elementary for anomaly detection. At the moment the tests only catch rules I thought of. Elementary would flag things like a sudden drop in daily volume, a jump in refunds or a late rates feed, and send alerts to the right people instead of leaving warnings in the logs.
 - Define revenue and GMV as metrics in the dbt semantic layer. Everyone would get the same numbers whatever tool they use, and it opens the door to asking questions in plain English through an AI tool, without having to know which model or filter to use.
 - Snapshot each month's figures when it closes so late data can't quietly change them.
+- Build on the CI. It only runs `dbt build` at the moment. I'd add AI code review on pull requests, only build what's changed and what depends on it, add more tests as the rules get confirmed, and hook it into proper observability so failures and anomalies reach the right people.
 
 ---
 
