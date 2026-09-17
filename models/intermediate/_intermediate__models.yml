@@ -12,6 +12,8 @@ models:
         description: Date of the rate used. Earlier than transaction_date when no same-day rate exists.
       - name: is_fallback_rate
         description: True when no rate existed for the transaction date.
+      - name: uses_original_payment_rate
+        description: True when a refund converts at the rate used for the payment it reverses.
       - name: amount_gbp
         description: Unsigned transaction amount in GBP.
         data_tests:
