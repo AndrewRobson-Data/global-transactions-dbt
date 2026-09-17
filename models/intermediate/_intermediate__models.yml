@@ -40,6 +40,30 @@ models:
         data_tests:
           - not_null
 
+  - name: int_transactions_revenue_recognised
+    description: Recognised transactions with signed GBP amounts and platform revenue. Pending chargebacks are excluded.
+    columns:
+      - name: transaction_id
+        data_tests:
+          - unique
+          - not_null
+      - name: recognition_date
+        description: Resolution date for chargebacks, transaction date otherwise.
+        data_tests:
+          - not_null
+      - name: recognition_month
+        description: First day of the recognition month.
+        data_tests:
+          - not_null
+      - name: signed_amount_gbp
+        description: Positive for payments, negative for refunds, chargebacks and fraud.
+        data_tests:
+          - not_null
+      - name: revenue_gbp
+        description: Signed GBP amount multiplied by the applied fee margin.
+        data_tests:
+          - not_null
+
 unit_tests:
   - name: test_discount_starts_after_threshold_is_crossed
     description: >
@@ -72,3 +96,27 @@ unit_tests:
         - {transaction_id: T7, payments_spend_before_gbp: 120, is_discount_applied: 0, applied_fee_margin: 0.2}
         - {transaction_id: T8, payments_spend_before_gbp: 0, is_discount_applied: 0, applied_fee_margin: 0.2}
         - {transaction_id: T9, payments_spend_before_gbp: 0, is_discount_applied: 0, applied_fee_margin: 0.2}
+
+  - name: test_chargebacks_recognised_when_resolved
+    description: >
+      Resolved chargebacks land in their resolution month, pending chargebacks are excluded,
+      and reversals carry negative revenue at the applied margin.
+    model: int_transactions_revenue_recognised
+    given:
+      - input: ref('int_transactions_with_discount_status')
+        rows:
+          - {transaction_id: T1, transaction_type: payment, transaction_date: '2024-01-10', amount_gbp: 100, applied_fee_margin: 0.2}
+          - {transaction_id: T2, transaction_type: refund, transaction_date: '2024-01-15', amount_gbp: 50, applied_fee_margin: 0.1}
+          - {transaction_id: T3, transaction_type: chargeback, transaction_date: '2024-01-20', amount_gbp: 40, applied_fee_margin: 0.2}
+          - {transaction_id: T4, transaction_type: chargeback, transaction_date: '2024-01-25', amount_gbp: 30, applied_fee_margin: 0.2}
+          - {transaction_id: T5, transaction_type: fraud, transaction_date: '2024-01-28', amount_gbp: 10, applied_fee_margin: 0.2}
+      - input: ref('stg_transaction_resolutions')
+        rows:
+          - {transaction_id: T3, resolution_status: resolved, resolution_date: '2024-02-03'}
+          - {transaction_id: T4, resolution_status: pending, resolution_date: null}
+    expect:
+      rows:
+        - {transaction_id: T1, recognition_month: '2024-01-01', signed_amount_gbp: 100, revenue_gbp: 20.0}
+        - {transaction_id: T2, recognition_month: '2024-01-01', signed_amount_gbp: -50, revenue_gbp: -5.0}
+        - {transaction_id: T3, recognition_month: '2024-02-01', signed_amount_gbp: -40, revenue_gbp: -8.0}
+        - {transaction_id: T5, recognition_month: '2024-01-01', signed_amount_gbp: -10, revenue_gbp: -2.0}
