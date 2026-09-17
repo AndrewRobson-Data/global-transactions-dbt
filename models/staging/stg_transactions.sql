@@ -8,7 +8,7 @@ renamed as (
         client_id,
         transaction_amount,
         transaction_type,
-        date(transaction_date) as transaction_date,
+        cast(date(transaction_date) as text) as transaction_date,
         platform_fee_margin,
         currency,
         linked_transaction_id
