@@ -1,0 +1,17 @@
+unit_tests:
+  - name: test_contract_end_date_handles_month_ends
+    description: Contracts starting late in the month end on the day before the same day N months later, capped at month end.
+    model: stg_client_contracts
+    given:
+      - input: ref('client_contracts')
+        rows:
+          - {client_id: C1, contract_start_date: '2024-01-01', contract_duration_months: 12}
+          - {client_id: C2, contract_start_date: '2024-01-31', contract_duration_months: 1}
+          - {client_id: C3, contract_start_date: '2024-08-31', contract_duration_months: 6}
+          - {client_id: C4, contract_start_date: '2024-03-15', contract_duration_months: 1}
+    expect:
+      rows:
+        - {client_id: C1, contract_end_date: '2024-12-31'}
+        - {client_id: C2, contract_end_date: '2024-02-28'}
+        - {client_id: C3, contract_end_date: '2025-02-27'}
+        - {client_id: C4, contract_end_date: '2024-04-14'}
