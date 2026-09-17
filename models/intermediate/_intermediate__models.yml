@@ -35,7 +35,7 @@ models:
       - name: original_payment_date
         description: For refunds, the date of the payment refunded.
       - name: is_discount_applied
-        description: True when the discounted margin applies. Refunds inherit this from the payment they refund.
+        description: True when the discounted margin applies. Refunds inherit this from the payment they refund; chargebacks and fraud never do.
         data_tests:
           - not_null
       - name: applied_fee_margin
@@ -84,7 +84,8 @@ unit_tests:
   - name: test_discount_starts_the_day_after_threshold_is_crossed
     description: >
       Everything on the day the threshold is crossed stays at the default margin, the discount starts the next day,
-      refunds use the margin of the payment they refund, and clients outside a contract are never discounted.
+      refunds use the margin of the payment they refund, chargebacks and fraud use the default margin,
+      and clients outside a contract are never discounted.
     model: int_transactions_with_discount_status
     given:
       - input: ref('int_transactions_converted_to_gbp')
@@ -110,7 +111,7 @@ unit_tests:
         - {transaction_id: T3, payments_spend_before_gbp: 120, is_discount_applied: 1, applied_fee_margin: 0.1}
         - {transaction_id: T4, payments_spend_before_gbp: 130, is_discount_applied: 1, applied_fee_margin: 0.1}
         - {transaction_id: T5, payments_spend_before_gbp: 130, is_discount_applied: 0, applied_fee_margin: 0.2}
-        - {transaction_id: T6, payments_spend_before_gbp: 130, is_discount_applied: 1, applied_fee_margin: 0.1}
+        - {transaction_id: T6, payments_spend_before_gbp: 130, is_discount_applied: 0, applied_fee_margin: 0.2}
         - {transaction_id: T7, payments_spend_before_gbp: 130, is_discount_applied: 0, applied_fee_margin: 0.2}
         - {transaction_id: T8, payments_spend_before_gbp: 0, is_discount_applied: 0, applied_fee_margin: 0.2}
         - {transaction_id: T9, payments_spend_before_gbp: 0, is_discount_applied: 0, applied_fee_margin: 0.2}

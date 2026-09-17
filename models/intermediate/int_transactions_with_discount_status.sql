@@ -61,7 +61,8 @@ with_margin as (
     from with_spend
 ),
 
--- refunds reverse the fee at the margin charged on the payment they refund
+-- refunds reverse the fee at the margin charged on the payment they refund.
+-- chargebacks and fraud carry no link to a payment, so they reverse at the default margin
 final as (
     select
         with_margin.transaction_id,
@@ -79,12 +80,13 @@ final as (
         payments.transaction_date as original_payment_date,
         cast(case
             when with_margin.transaction_type = 'refund' then payments.is_discount_eligible
-            else with_margin.is_discount_eligible
+            when with_margin.transaction_type = 'payment' then with_margin.is_discount_eligible
+            else 0
         end as integer) as is_discount_applied,
         cast(case
             when with_margin.transaction_type = 'refund' and payments.is_discount_eligible then payments.discounted_fee_margin
             when with_margin.transaction_type = 'refund' then payments.platform_fee_margin
-            when with_margin.is_discount_eligible then with_margin.discounted_fee_margin
+            when with_margin.transaction_type = 'payment' and with_margin.is_discount_eligible then with_margin.discounted_fee_margin
             else with_margin.platform_fee_margin
         end as real) as applied_fee_margin
     from with_margin
