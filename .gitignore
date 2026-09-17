@@ -4,3 +4,7 @@ logs/
 .idea/
 .user.yml
 venv/
+target/
+.venv/
+*.db
+.vscode/
