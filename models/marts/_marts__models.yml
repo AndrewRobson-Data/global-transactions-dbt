@@ -1,0 +1,53 @@
+version: 2
+
+models:
+  - name: fct_client_monthly_revenue
+    description: >
+      Monthly revenue recognition per client, with a row for every client and month.
+      Revenue is the platform fee on recognised transactions; reversals give the fee back.
+    data_tests:
+      - unique:
+          arguments:
+            column_name: "client_id || '-' || month_start"
+    columns:
+      - name: client_id
+        data_tests:
+          - not_null
+      - name: month_start
+        description: First day of the recognition month.
+        data_tests:
+          - not_null
+      - name: revenue_gbp
+        description: Platform fee revenue in GBP. Chargebacks count in their resolution month.
+        data_tests:
+          - not_null
+      - name: gross_gmv_gbp
+        description: Payments in GBP.
+        data_tests:
+          - not_null
+      - name: net_gmv_gbp
+        description: Payments less refunds, resolved chargebacks and fraud, in GBP.
+        data_tests:
+          - not_null
+      - name: has_contract
+        description: Client has a discount contract.
+      - name: is_contract_active
+        description: The contract covers at least part of this month.
+      - name: spend_threshold
+        description: Contract spend needed before the discounted margin applies.
+      - name: spend_to_date_gbp
+        description: In-contract payments in GBP up to the end of this month. Null without a contract.
+        data_tests:
+          - not_null:
+              config:
+                where: "has_contract = 1"
+      - name: pct_of_threshold
+        description: spend_to_date_gbp as a share of spend_threshold.
+      - name: is_threshold_reached
+        description: Spend to date has reached the threshold.
+        data_tests:
+          - not_null
+      - name: is_discount_applied
+        description: At least one transaction this month used the discounted margin.
+        data_tests:
+          - not_null

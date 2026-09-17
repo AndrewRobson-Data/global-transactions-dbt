@@ -1,0 +1,97 @@
+with transactions as (
+    select * from {{ ref('int_transactions_converted_to_gbp') }}
+),
+
+contracts as (
+    select * from {{ ref('stg_client_contracts') }}
+),
+
+with_contract as (
+    select
+        transactions.*,
+        cast(contracts.client_id is not null as integer) as is_in_contract,
+        contracts.spend_threshold,
+        contracts.discounted_fee_margin
+    from transactions
+    left join contracts
+        on transactions.client_id = contracts.client_id
+        and transactions.transaction_date between contracts.contract_start_date and contracts.contract_end_date
+),
+
+-- spend is in-contract payments from earlier days only. there are no timestamps,
+-- so the discount starts the day after the threshold is crossed
+daily_spend as (
+    select
+        client_id,
+        transaction_date,
+        sum(case when is_in_contract and transaction_type = 'payment' then amount_gbp else 0 end) as payments_gbp
+    from with_contract
+    group by client_id, transaction_date
+),
+
+spend_before_day as (
+    select
+        client_id,
+        transaction_date,
+        coalesce(
+            sum(payments_gbp) over (
+                partition by client_id
+                order by transaction_date
+                rows between unbounded preceding and 1 preceding
+            ),
+            0
+        ) as payments_spend_before_gbp
+    from daily_spend
+),
+
+with_spend as (
+    select
+        with_contract.*,
+        cast(spend_before_day.payments_spend_before_gbp as real) as payments_spend_before_gbp
+    from with_contract
+    inner join spend_before_day
+        on with_contract.client_id = spend_before_day.client_id
+        and with_contract.transaction_date = spend_before_day.transaction_date
+),
+
+with_margin as (
+    select
+        *,
+        is_in_contract and payments_spend_before_gbp >= spend_threshold as is_discount_eligible
+    from with_spend
+),
+
+-- refunds reverse the fee at the margin charged on the payment they refund.
+-- chargebacks and fraud carry no link to a payment, so they reverse at the default margin
+final as (
+    select
+        with_margin.transaction_id,
+        with_margin.client_id,
+        with_margin.transaction_type,
+        with_margin.transaction_date,
+        with_margin.linked_transaction_id,
+        with_margin.currency,
+        with_margin.transaction_amount,
+        with_margin.amount_gbp,
+        with_margin.is_in_contract,
+        with_margin.spend_threshold,
+        with_margin.payments_spend_before_gbp,
+        with_margin.platform_fee_margin,
+        payments.transaction_date as original_payment_date,
+        cast(case
+            when with_margin.transaction_type = 'refund' then payments.is_discount_eligible
+            when with_margin.transaction_type = 'payment' then with_margin.is_discount_eligible
+            else 0
+        end as integer) as is_discount_applied,
+        cast(case
+            when with_margin.transaction_type = 'refund' and payments.is_discount_eligible then payments.discounted_fee_margin
+            when with_margin.transaction_type = 'refund' then payments.platform_fee_margin
+            when with_margin.transaction_type = 'payment' and with_margin.is_discount_eligible then with_margin.discounted_fee_margin
+            else with_margin.platform_fee_margin
+        end as real) as applied_fee_margin
+    from with_margin
+    left join with_margin as payments
+        on with_margin.linked_transaction_id = payments.transaction_id
+)
+
+select * from final

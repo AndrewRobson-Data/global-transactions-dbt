@@ -1,0 +1,141 @@
+version: 2
+
+models:
+  - name: int_transactions_converted_to_gbp
+    description: Transactions with amounts converted to GBP at the latest rate on or before the transaction date.
+    columns:
+      - name: transaction_id
+        data_tests:
+          - unique
+          - not_null
+      - name: rate_date
+        description: Date of the rate used. Earlier than transaction_date when no same-day rate exists.
+      - name: is_fallback_rate
+        description: True when no rate existed for the transaction date.
+      - name: uses_original_payment_rate
+        description: True when a refund converts at the rate used for the payment it reverses.
+      - name: amount_gbp
+        description: Unsigned transaction amount in GBP.
+        data_tests:
+          - not_null
+
+  - name: int_transactions_with_discount_status
+    description: Transactions with running contract spend and the fee margin applied.
+    columns:
+      - name: transaction_id
+        data_tests:
+          - unique
+          - not_null
+      - name: is_in_contract
+        description: True when the transaction falls within the client's contract dates.
+      - name: payments_spend_before_gbp
+        description: In-contract payments in GBP on days before this transaction's date.
+        data_tests:
+          - not_null
+      - name: original_payment_date
+        description: For refunds, the date of the payment refunded.
+      - name: is_discount_applied
+        description: True when the discounted margin applies. Refunds inherit this from the payment they refund; chargebacks and fraud never do.
+        data_tests:
+          - not_null
+      - name: applied_fee_margin
+        data_tests:
+          - not_null
+
+  - name: int_transactions_revenue_recognised
+    description: Recognised transactions with signed GBP amounts and platform revenue. Pending chargebacks are excluded.
+    columns:
+      - name: transaction_id
+        data_tests:
+          - unique
+          - not_null
+      - name: recognition_date
+        description: Resolution date for chargebacks, transaction date otherwise.
+        data_tests:
+          - not_null
+      - name: recognition_month
+        description: First day of the recognition month.
+        data_tests:
+          - not_null
+      - name: signed_amount_gbp
+        description: Positive for payments, negative for refunds, chargebacks and fraud.
+        data_tests:
+          - not_null
+      - name: revenue_gbp
+        description: Signed GBP amount multiplied by the applied fee margin.
+        data_tests:
+          - not_null
+
+  - name: int_client_months
+    description: One row per client per month, from the first to the last recognised month.
+    data_tests:
+      - unique:
+          arguments:
+            column_name: "client_id || '-' || month_start"
+    columns:
+      - name: client_id
+        data_tests:
+          - not_null
+      - name: month_start
+        data_tests:
+          - not_null
+
+unit_tests:
+  - name: test_discount_starts_the_day_after_threshold_is_crossed
+    description: >
+      Everything on the day the threshold is crossed stays at the default margin, the discount starts the next day,
+      refunds use the margin of the payment they refund, chargebacks and fraud use the default margin,
+      and clients outside a contract are never discounted.
+    model: int_transactions_with_discount_status
+    given:
+      - input: ref('int_transactions_converted_to_gbp')
+        rows:
+          - {transaction_id: T1, client_id: C1, transaction_type: payment, transaction_date: '2024-01-01', linked_transaction_id: null, amount_gbp: 60, platform_fee_margin: 0.2}
+          - {transaction_id: T2, client_id: C1, transaction_type: payment, transaction_date: '2024-01-02', linked_transaction_id: null, amount_gbp: 50, platform_fee_margin: 0.2}
+          - {transaction_id: T2B, client_id: C1, transaction_type: payment, transaction_date: '2024-01-02', linked_transaction_id: null, amount_gbp: 10, platform_fee_margin: 0.2}
+          - {transaction_id: T3, client_id: C1, transaction_type: payment, transaction_date: '2024-01-03', linked_transaction_id: null, amount_gbp: 10, platform_fee_margin: 0.2}
+          - {transaction_id: T4, client_id: C1, transaction_type: refund, transaction_date: '2024-01-04', linked_transaction_id: T3, amount_gbp: 10, platform_fee_margin: 0.2}
+          - {transaction_id: T5, client_id: C1, transaction_type: refund, transaction_date: '2024-01-04', linked_transaction_id: T1, amount_gbp: 60, platform_fee_margin: 0.2}
+          - {transaction_id: T6, client_id: C1, transaction_type: chargeback, transaction_date: '2024-01-05', linked_transaction_id: null, amount_gbp: 5, platform_fee_margin: 0.2}
+          - {transaction_id: T7, client_id: C1, transaction_type: payment, transaction_date: '2024-03-01', linked_transaction_id: null, amount_gbp: 5, platform_fee_margin: 0.2}
+          - {transaction_id: T8, client_id: C2, transaction_type: payment, transaction_date: '2024-01-01', linked_transaction_id: null, amount_gbp: 1000, platform_fee_margin: 0.2}
+          - {transaction_id: T9, client_id: C2, transaction_type: payment, transaction_date: '2024-01-02', linked_transaction_id: null, amount_gbp: 1000, platform_fee_margin: 0.2}
+      - input: ref('stg_client_contracts')
+        rows:
+          - {client_id: C1, contract_start_date: '2024-01-01', contract_end_date: '2024-01-31', spend_threshold: 100, discounted_fee_margin: 0.1}
+    expect:
+      rows:
+        - {transaction_id: T1, payments_spend_before_gbp: 0, is_discount_applied: 0, applied_fee_margin: 0.2}
+        - {transaction_id: T2, payments_spend_before_gbp: 60, is_discount_applied: 0, applied_fee_margin: 0.2}
+        - {transaction_id: T2B, payments_spend_before_gbp: 60, is_discount_applied: 0, applied_fee_margin: 0.2}
+        - {transaction_id: T3, payments_spend_before_gbp: 120, is_discount_applied: 1, applied_fee_margin: 0.1}
+        - {transaction_id: T4, payments_spend_before_gbp: 130, is_discount_applied: 1, applied_fee_margin: 0.1}
+        - {transaction_id: T5, payments_spend_before_gbp: 130, is_discount_applied: 0, applied_fee_margin: 0.2}
+        - {transaction_id: T6, payments_spend_before_gbp: 130, is_discount_applied: 0, applied_fee_margin: 0.2}
+        - {transaction_id: T7, payments_spend_before_gbp: 130, is_discount_applied: 0, applied_fee_margin: 0.2}
+        - {transaction_id: T8, payments_spend_before_gbp: 0, is_discount_applied: 0, applied_fee_margin: 0.2}
+        - {transaction_id: T9, payments_spend_before_gbp: 0, is_discount_applied: 0, applied_fee_margin: 0.2}
+
+  - name: test_chargebacks_recognised_when_resolved
+    description: >
+      Resolved chargebacks land in their resolution month, pending chargebacks are excluded,
+      and reversals carry negative revenue at the applied margin.
+    model: int_transactions_revenue_recognised
+    given:
+      - input: ref('int_transactions_with_discount_status')
+        rows:
+          - {transaction_id: T1, transaction_type: payment, transaction_date: '2024-01-10', amount_gbp: 100, applied_fee_margin: 0.2}
+          - {transaction_id: T2, transaction_type: refund, transaction_date: '2024-01-15', amount_gbp: 50, applied_fee_margin: 0.1}
+          - {transaction_id: T3, transaction_type: chargeback, transaction_date: '2024-01-20', amount_gbp: 40, applied_fee_margin: 0.2}
+          - {transaction_id: T4, transaction_type: chargeback, transaction_date: '2024-01-25', amount_gbp: 30, applied_fee_margin: 0.2}
+          - {transaction_id: T5, transaction_type: fraud, transaction_date: '2024-01-28', amount_gbp: 10, applied_fee_margin: 0.2}
+      - input: ref('stg_transaction_resolutions')
+        rows:
+          - {transaction_id: T3, resolution_status: resolved, resolution_date: '2024-02-03'}
+          - {transaction_id: T4, resolution_status: pending, resolution_date: null}
+    expect:
+      rows:
+        - {transaction_id: T1, recognition_month: '2024-01-01', signed_amount_gbp: 100, revenue_gbp: 20.0}
+        - {transaction_id: T2, recognition_month: '2024-01-01', signed_amount_gbp: -50, revenue_gbp: -5.0}
+        - {transaction_id: T3, recognition_month: '2024-02-01', signed_amount_gbp: -40, revenue_gbp: -8.0}
+        - {transaction_id: T5, recognition_month: '2024-01-01', signed_amount_gbp: -10, revenue_gbp: -2.0}

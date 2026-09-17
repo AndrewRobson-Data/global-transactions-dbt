@@ -1,0 +1,12 @@
+dbt_packages/
+logs/
+.DS_Store
+.idea/
+.user.yml
+venv/
+target/
+.venv/
+*.db
+.vscode/
+seeds/target/
+seeds/logs/
