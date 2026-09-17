@@ -18,20 +18,40 @@ with_contract as (
         and transactions.transaction_date between contracts.contract_start_date and contracts.contract_end_date
 ),
 
--- spend is in-contract payments only, and excludes the current transaction,
--- so the payment that crosses the threshold is still charged the default margin
-with_spend as (
+-- spend is in-contract payments from earlier days only. there are no timestamps,
+-- so the discount starts the day after the threshold is crossed
+daily_spend as (
     select
-        *,
-        cast(coalesce(
-            sum(case when is_in_contract and transaction_type = 'payment' then amount_gbp end) over (
+        client_id,
+        transaction_date,
+        sum(case when is_in_contract and transaction_type = 'payment' then amount_gbp else 0 end) as payments_gbp
+    from with_contract
+    group by client_id, transaction_date
+),
+
+spend_before_day as (
+    select
+        client_id,
+        transaction_date,
+        coalesce(
+            sum(payments_gbp) over (
                 partition by client_id
-                order by transaction_date, transaction_id
+                order by transaction_date
                 rows between unbounded preceding and 1 preceding
             ),
             0
-        ) as real) as payments_spend_before_gbp
+        ) as payments_spend_before_gbp
+    from daily_spend
+),
+
+with_spend as (
+    select
+        with_contract.*,
+        cast(spend_before_day.payments_spend_before_gbp as real) as payments_spend_before_gbp
     from with_contract
+    inner join spend_before_day
+        on with_contract.client_id = spend_before_day.client_id
+        and with_contract.transaction_date = spend_before_day.transaction_date
 ),
 
 with_margin as (

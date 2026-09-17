@@ -27,7 +27,7 @@ models:
       - name: is_in_contract
         description: True when the transaction falls within the client's contract dates.
       - name: payments_spend_before_gbp
-        description: In-contract payments in GBP before this transaction. Same-day ties are ordered by transaction_id.
+        description: In-contract payments in GBP on days before this transaction's date.
         data_tests:
           - not_null
       - name: original_payment_date
@@ -79,9 +79,9 @@ models:
           - not_null
 
 unit_tests:
-  - name: test_discount_starts_after_threshold_is_crossed
+  - name: test_discount_starts_the_day_after_threshold_is_crossed
     description: >
-      The payment that crosses the threshold stays at the default margin, later transactions get the discount,
+      Everything on the day the threshold is crossed stays at the default margin, the discount starts the next day,
       refunds use the margin of the payment they refund, and clients outside a contract are never discounted.
     model: int_transactions_with_discount_status
     given:
@@ -89,6 +89,7 @@ unit_tests:
         rows:
           - {transaction_id: T1, client_id: C1, transaction_type: payment, transaction_date: '2024-01-01', linked_transaction_id: null, amount_gbp: 60, platform_fee_margin: 0.2}
           - {transaction_id: T2, client_id: C1, transaction_type: payment, transaction_date: '2024-01-02', linked_transaction_id: null, amount_gbp: 50, platform_fee_margin: 0.2}
+          - {transaction_id: T2B, client_id: C1, transaction_type: payment, transaction_date: '2024-01-02', linked_transaction_id: null, amount_gbp: 10, platform_fee_margin: 0.2}
           - {transaction_id: T3, client_id: C1, transaction_type: payment, transaction_date: '2024-01-03', linked_transaction_id: null, amount_gbp: 10, platform_fee_margin: 0.2}
           - {transaction_id: T4, client_id: C1, transaction_type: refund, transaction_date: '2024-01-04', linked_transaction_id: T3, amount_gbp: 10, platform_fee_margin: 0.2}
           - {transaction_id: T5, client_id: C1, transaction_type: refund, transaction_date: '2024-01-04', linked_transaction_id: T1, amount_gbp: 60, platform_fee_margin: 0.2}
@@ -103,11 +104,12 @@ unit_tests:
       rows:
         - {transaction_id: T1, payments_spend_before_gbp: 0, is_discount_applied: 0, applied_fee_margin: 0.2}
         - {transaction_id: T2, payments_spend_before_gbp: 60, is_discount_applied: 0, applied_fee_margin: 0.2}
-        - {transaction_id: T3, payments_spend_before_gbp: 110, is_discount_applied: 1, applied_fee_margin: 0.1}
-        - {transaction_id: T4, payments_spend_before_gbp: 120, is_discount_applied: 1, applied_fee_margin: 0.1}
-        - {transaction_id: T5, payments_spend_before_gbp: 120, is_discount_applied: 0, applied_fee_margin: 0.2}
-        - {transaction_id: T6, payments_spend_before_gbp: 120, is_discount_applied: 1, applied_fee_margin: 0.1}
-        - {transaction_id: T7, payments_spend_before_gbp: 120, is_discount_applied: 0, applied_fee_margin: 0.2}
+        - {transaction_id: T2B, payments_spend_before_gbp: 60, is_discount_applied: 0, applied_fee_margin: 0.2}
+        - {transaction_id: T3, payments_spend_before_gbp: 120, is_discount_applied: 1, applied_fee_margin: 0.1}
+        - {transaction_id: T4, payments_spend_before_gbp: 130, is_discount_applied: 1, applied_fee_margin: 0.1}
+        - {transaction_id: T5, payments_spend_before_gbp: 130, is_discount_applied: 0, applied_fee_margin: 0.2}
+        - {transaction_id: T6, payments_spend_before_gbp: 130, is_discount_applied: 1, applied_fee_margin: 0.1}
+        - {transaction_id: T7, payments_spend_before_gbp: 130, is_discount_applied: 0, applied_fee_margin: 0.2}
         - {transaction_id: T8, payments_spend_before_gbp: 0, is_discount_applied: 0, applied_fee_margin: 0.2}
         - {transaction_id: T9, payments_spend_before_gbp: 0, is_discount_applied: 0, applied_fee_margin: 0.2}
 
